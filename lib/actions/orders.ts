@@ -49,7 +49,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   if (!validationResult.success) {
     return {
       success: false,
-      message: validationResult.error.errors[0].message,
+      message: validationResult.error.issues[0].message,
     };
   }
 

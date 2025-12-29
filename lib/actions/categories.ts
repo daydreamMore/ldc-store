@@ -67,7 +67,7 @@ export async function createCategory(input: CreateCategoryInput) {
   if (!validationResult.success) {
     return {
       success: false,
-      message: validationResult.error.errors[0].message,
+      message: validationResult.error.issues[0].message,
     };
   }
 
@@ -98,7 +98,7 @@ export async function updateCategory(id: string, input: UpdateCategoryInput) {
   if (!validationResult.success) {
     return {
       success: false,
-      message: validationResult.error.errors[0].message,
+      message: validationResult.error.issues[0].message,
     };
   }
 

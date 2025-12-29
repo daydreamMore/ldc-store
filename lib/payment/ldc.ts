@@ -131,7 +131,7 @@ export async function createPayment(
     return_url: `${siteUrl}/order/result?orderNo=${orderId}`,
   };
 
-  const sign = generateSign(params as Record<string, string>, secret);
+  const sign = generateSign(params as unknown as Record<string, string>, secret);
 
   const formData = new URLSearchParams({
     ...params,

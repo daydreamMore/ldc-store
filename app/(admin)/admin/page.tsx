@@ -81,11 +81,11 @@ async function getDashboardStats() {
       total: parseFloat(todaySales[0]?.total || "0").toFixed(2),
     },
     pendingOrderCount: pendingOrders[0]?.count || 0,
-    lowStockProducts: (lowStockProducts.rows || []) as Array<{
+    lowStockProducts: (lowStockProducts as unknown as Array<{
       id: string;
       name: string;
       stock: number;
-    }>,
+    }>) || [],
     recentOrders,
     totalProducts: totalProducts[0]?.count || 0,
     totalStock: totalStock[0]?.count || 0,

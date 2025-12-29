@@ -217,7 +217,7 @@ export async function createProduct(input: CreateProductInput) {
   if (!validationResult.success) {
     return {
       success: false,
-      message: validationResult.error.errors[0].message,
+      message: validationResult.error.issues[0].message,
     };
   }
 
@@ -253,7 +253,7 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
   if (!validationResult.success) {
     return {
       success: false,
-      message: validationResult.error.errors[0].message,
+      message: validationResult.error.issues[0].message,
     };
   }
 

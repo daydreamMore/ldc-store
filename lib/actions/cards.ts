@@ -13,7 +13,7 @@ export async function importCards(input: ImportCardsInput) {
   if (!validationResult.success) {
     return {
       success: false,
-      message: validationResult.error.errors[0].message,
+      message: validationResult.error.issues[0].message,
     };
   }
 
@@ -261,11 +261,12 @@ export async function cleanDuplicateCards(productId: string) {
       SELECT id FROM duplicates WHERE rn > 1
     `);
 
-    if (!duplicates.rows || duplicates.rows.length === 0) {
+    const duplicateRows = duplicates as unknown as Array<{ id: string }>;
+    if (!duplicateRows || duplicateRows.length === 0) {
       return { success: true, message: "没有发现重复卡密", deletedCount: 0 };
     }
 
-    const duplicateIds = duplicates.rows.map((row: { id: string }) => row.id);
+    const duplicateIds = duplicateRows.map((row) => row.id);
 
     await db.delete(cards).where(inArray(cards.id, duplicateIds));
 
