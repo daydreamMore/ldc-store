@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { db, orders, cards, products } from "@/lib/db";
 import { eq, sql, and, gte } from "drizzle-orm";
 import { StatsCard } from "@/components/admin/stats-card";

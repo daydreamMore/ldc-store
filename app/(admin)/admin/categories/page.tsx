@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getAllCategoriesWithCount } from "@/lib/actions/categories";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
