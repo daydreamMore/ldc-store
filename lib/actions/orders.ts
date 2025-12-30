@@ -27,7 +27,7 @@ function generateOrderNo(): string {
 }
 
 // 订单过期时间（分钟）
-const ORDER_EXPIRE_MINUTES = parseInt(process.env.ORDER_EXPIRE_MINUTES || "30", 10);
+const ORDER_EXPIRE_MINUTES = parseInt(process.env.ORDER_EXPIRE_MINUTES || "10", 10);
 
 export interface CreateOrderResult {
   success: boolean;
@@ -70,7 +70,10 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   const { productId, quantity, paymentMethod } = validationResult.data;
 
   try {
-    // 2. 获取商品信息
+    // 2.1 释放过期订单，确保库存准确（懒加载策略）
+    await releaseExpiredOrders();
+    
+    // 2.2 获取商品信息
     const product = await db.query.products.findFirst({
       where: and(eq(products.id, productId), eq(products.isActive, true)),
     });
@@ -239,7 +242,7 @@ export async function handlePaymentSuccess(
 
 /**
  * 释放过期订单的锁定卡密
- * 应该通过定时任务调用
+ * 采用懒加载策略：在关键操作时自动调用
  */
 export async function releaseExpiredOrders(): Promise<number> {
   try {

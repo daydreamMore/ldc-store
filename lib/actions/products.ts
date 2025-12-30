@@ -10,6 +10,40 @@ import {
   type UpdateProductInput,
 } from "@/lib/validations/product";
 
+// 节流：最多每 60 秒检查一次过期订单
+let lastExpireCheck = 0;
+const EXPIRE_CHECK_INTERVAL = 60 * 1000; // 60 秒
+
+/**
+ * 懒加载释放过期订单（带节流）
+ * 在商品查询时自动触发，确保库存显示准确
+ */
+async function lazyReleaseExpiredOrders() {
+  const now = Date.now();
+  if (now - lastExpireCheck < EXPIRE_CHECK_INTERVAL) {
+    return; // 节流：跳过
+  }
+  lastExpireCheck = now;
+
+  try {
+    // 使用 CTE 一次性处理过期订单
+    await db.execute(sql`
+      WITH expired AS (
+        UPDATE orders
+        SET status = 'expired', updated_at = NOW()
+        WHERE status = 'pending' AND expired_at < NOW()
+        RETURNING id
+      )
+      UPDATE cards
+      SET status = 'available', order_id = NULL, locked_at = NULL
+      WHERE status = 'locked' AND order_id IN (SELECT id FROM expired)
+    `);
+  } catch (error) {
+    // 静默失败，不影响主流程
+    console.error("[lazyReleaseExpiredOrders] 释放过期订单失败:", error);
+  }
+}
+
 /**
  * 获取商品列表（前台）
  */
@@ -20,6 +54,9 @@ export async function getActiveProducts(options?: {
   offset?: number;
   search?: string;
 }) {
+  // 懒加载释放过期订单，确保库存准确
+  await lazyReleaseExpiredOrders();
+  
   const { categoryId, featured, limit = 20, offset = 0, search } = options || {};
 
   const conditions = [eq(products.isActive, true)];
@@ -90,6 +127,9 @@ export async function getActiveProducts(options?: {
  * 获取商品详情
  */
 export async function getProductBySlug(slug: string) {
+  // 懒加载释放过期订单，确保库存准确
+  await lazyReleaseExpiredOrders();
+  
   const product = await db.query.products.findFirst({
     where: and(eq(products.slug, slug), eq(products.isActive, true)),
     with: {
