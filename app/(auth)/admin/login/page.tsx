@@ -180,10 +180,11 @@ function LoginFormFallback() {
 
 export default function AdminLoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100 p-4 dark:from-zinc-950 dark:to-zinc-900">
+    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100 p-4 dark:from-zinc-950 dark:to-zinc-900">
       <Suspense fallback={<LoginFormFallback />}>
         <LoginForm />
       </Suspense>
     </div>
   );
 }
+
