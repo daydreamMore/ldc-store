@@ -45,3 +45,4 @@ helloagents/
 
 # AI context files
 **/CLAUDE.md
+.zcf/
