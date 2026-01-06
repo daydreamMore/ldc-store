@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { getProductById, updateProduct } from "@/lib/actions/products";
+import {
+  getAdminCategories,
+  type AdminCategoryOption,
+} from "@/lib/actions/categories";
 import { productSchema, type ProductInput } from "@/lib/validations/product";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +16,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -34,6 +46,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
   const { id } = use(params);
   const [isPending, startTransition] = useTransition();
   const [isLoading, setIsLoading] = useState(true);
+  const [categoryOptions, setCategoryOptions] = useState<AdminCategoryOption[]>([]);
   const router = useRouter();
 
   const form = useForm<ProductInput>({
@@ -41,6 +54,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     defaultValues: {
       name: "",
       slug: "",
+      categoryId: null,
       description: "",
       content: "",
       price: 0,
@@ -56,8 +70,31 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
   // 加载商品数据
   useEffect(() => {
+    let isMounted = true;
+
     async function loadProduct() {
-      const product = await getProductById(id);
+      const [productResult, categoriesResult] = await Promise.allSettled([
+        getProductById(id),
+        getAdminCategories(),
+      ]);
+
+      if (!isMounted) return;
+
+      if (categoriesResult.status === "fulfilled") {
+        setCategoryOptions(categoriesResult.value);
+      } else {
+        console.error("加载分类失败:", categoriesResult.reason);
+        toast.error("加载分类失败");
+      }
+
+      if (productResult.status !== "fulfilled") {
+        console.error("加载商品失败:", productResult.reason);
+        toast.error("加载商品失败");
+        router.push("/admin/products");
+        return;
+      }
+
+      const product = productResult.value;
       if (!product) {
         toast.error("商品不存在");
         router.push("/admin/products");
@@ -67,6 +104,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
       form.reset({
         name: product.name,
         slug: product.slug,
+        categoryId: product.categoryId ?? null,
         description: product.description || "",
         content: product.content || "",
         price: parseFloat(product.price),
@@ -84,6 +122,10 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     }
 
     loadProduct();
+
+    return () => {
+      isMounted = false;
+    };
   }, [id, form, router]);
 
   const onSubmit = (values: ProductInput) => {
@@ -176,6 +218,48 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                         </FormControl>
                         <FormDescription>
                           商品页面 URL: /product/{field.value || "xxx"}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="categoryId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>商品分类</FormLabel>
+                        <Select
+                          value={field.value ?? "none"}
+                          onValueChange={(value) =>
+                            field.onChange(value === "none" ? null : value)
+                          }
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="选择分类（可选）" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent align="start">
+                            <SelectItem value="none">未分类</SelectItem>
+                            <SelectSeparator />
+                            {categoryOptions.length > 0 ? (
+                              categoryOptions.map((category) => (
+                                <SelectItem key={category.id} value={category.id}>
+                                  {category.name}
+                                  {!category.isActive ? "（已隐藏）" : ""}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="__empty__" disabled>
+                                暂无分类
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          用于前台筛选与商品展示（可不选）
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -445,5 +529,4 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     </div>
   );
 }
-
 

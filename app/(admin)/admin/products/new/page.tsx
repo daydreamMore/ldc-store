@@ -1,16 +1,28 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createProduct } from "@/lib/actions/products";
+import {
+  getAdminCategories,
+  type AdminCategoryOption,
+} from "@/lib/actions/categories";
 import { productSchema, type ProductInput } from "@/lib/validations/product";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -26,6 +38,8 @@ import Link from "next/link";
 
 export default function NewProductPage() {
   const [isPending, startTransition] = useTransition();
+  const [categoryOptions, setCategoryOptions] = useState<AdminCategoryOption[]>([]);
+  const [isCategoryLoading, setIsCategoryLoading] = useState(true);
   const router = useRouter();
 
   const form = useForm<ProductInput>({
@@ -33,6 +47,7 @@ export default function NewProductPage() {
     defaultValues: {
       name: "",
       slug: "",
+      categoryId: null,
       description: "",
       content: "",
       price: 0,
@@ -46,12 +61,37 @@ export default function NewProductPage() {
     },
   });
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCategories() {
+      try {
+        const categories = await getAdminCategories();
+        if (!isMounted) return;
+        setCategoryOptions(categories);
+      } catch (error) {
+        console.error("加载分类失败:", error);
+        toast.error("加载分类失败");
+      } finally {
+        if (!isMounted) return;
+        setIsCategoryLoading(false);
+      }
+    }
+
+    loadCategories();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Auto-generate slug from name
   const watchName = form.watch("name");
   const generateSlug = () => {
     const slug = watchName
       .toLowerCase()
-      .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-")
+      // 为什么这样做：后端校验仅允许 a-z0-9-，这里提前规范化，避免自动生成后又校验失败。
+      .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
     form.setValue("slug", slug || `product-${Date.now()}`);
   };
@@ -135,6 +175,52 @@ export default function NewProductPage() {
                         </div>
                         <FormDescription>
                           商品页面 URL: /product/{field.value || "xxx"}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="categoryId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>商品分类</FormLabel>
+                        <Select
+                          value={field.value ?? "none"}
+                          onValueChange={(value) =>
+                            field.onChange(value === "none" ? null : value)
+                          }
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="选择分类（可选）" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent align="start">
+                            <SelectItem value="none">未分类</SelectItem>
+                            <SelectSeparator />
+                            {isCategoryLoading ? (
+                              <SelectItem value="__loading__" disabled>
+                                加载中...
+                              </SelectItem>
+                            ) : categoryOptions.length > 0 ? (
+                              categoryOptions.map((category) => (
+                                <SelectItem key={category.id} value={category.id}>
+                                  {category.name}
+                                  {!category.isActive ? "（已隐藏）" : ""}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="__empty__" disabled>
+                                暂无分类
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          用于前台筛选与商品展示（可不选）
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -401,4 +487,3 @@ export default function NewProductPage() {
     </div>
   );
 }
-
